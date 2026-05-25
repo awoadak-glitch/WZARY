@@ -1,5 +1,7 @@
 "use client";
-import { useState } from "react";
+export const dynamic = "force-dynamic";
+
+import { useState, useEffect } from "react";
 import { db } from "./firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 
@@ -8,13 +10,21 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // إذا كان المستخدم مسجل دخوله بالفعل، يتم توجيهه تلقائياً للوحة التحكم
+  useEffect(() => {
+    const role = localStorage.getItem("user_role");
+    if (role) {
+      window.location.href = "./dashboard";
+    }
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!password.trim()) return;
     setLoading(true);
     setError("");
 
-    // 1. التحقق أولاً إذا كان الكود هو كود الإدمن الماستر لفتح لوحة التحكم
+    // 1. التحقق من كود الإدمن الماستر
     if (password === "Admin2026") {
       localStorage.setItem("user_role", "admin");
       localStorage.setItem("user_token", "Admin2026");
@@ -23,7 +33,7 @@ export default function LoginPage() {
     }
 
     try {
-      // 2. التحقق من وجود الرمز داخل مجموعة tokens السحابية في Firebase للطلاب
+      // 2. التحقق من وجود الرمز داخل السيرفر للطلاب
       const q = query(collection(db, "tokens"), where("code", "==", password.trim()));
       const querySnapshot = await getDocs(q);
 
@@ -42,20 +52,20 @@ export default function LoginPage() {
   };
 
   const handleWhatsAppRequest = () => {
-    const phoneNumber = "967782217679"; // رقمك بصيغة دولية صحيحة
+    const phoneNumber = "967782217679";
     const message = encodeURIComponent("مرحباً أستاذ، أريد الحصول على كلمة المرور الخاصة بمنصة المنهج الشامل التعليمية.");
     window.open(`https://wa.me/${phoneNumber}?text=${message}`, "_blank");
   };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-[#070510] text-white px-4 relative overflow-hidden">
-      {/* خلفية نيون متموجة لتعطي فخامة للتصميم الفخم */}
+      {/* تأثير إضاءة النيون الخلفية */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-purple-600/10 blur-[120px] rounded-full pointer-events-none"></div>
       <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 translate-y-1/2 w-80 h-80 bg-pink-600/10 blur-[120px] rounded-full pointer-events-none"></div>
 
       <div className="w-full max-w-md bg-[#13112a]/80 border border-purple-500/30 rounded-2xl p-8 backdrop-blur-xl shadow-2xl shadow-purple-950/20 text-center relative z-10">
         
-        {/* شعار المنصة الفخم */}
+        {/* شعار المنصة */}
         <div className="text-5xl mb-4 animate-bounce duration-1000">📚</div>
         <h1 className="text-3xl font-extrabold bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent mb-2 tracking-wide">
           الْمَنْهَجُ الشَّامِل
@@ -99,7 +109,6 @@ export default function LoginPage() {
           </button>
         </div>
 
-        {/* وضع بصمتك الحقيقية والنهائية */}
         <p className="text-purple-400/60 text-xs mt-8 font-bold tracking-widest">إعداد وتطوير: الديفل ⚡</p>
       </div>
     </div>
