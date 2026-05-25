@@ -1,0 +1,59 @@
+name: Deploy Next.js to GitHub Pages
+
+on:
+  push:
+    branches: ["main"] # سيعمل الـ Action تلقائياً بمجرد رفع التعديلات على فرع main
+
+  # يتيح لك تشغيل الـ Workflow يدوياً من تبويب Actions في جيتهاب عبر الهاتف
+  workflow_dispatch:
+
+# إعطاء الصلاحيات اللازمة للـ Action لبناء الموقع ونشره
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build_and_deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps:deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: ${{ hashFiles('package-lock.json') != '' && 'npm' || '' }}
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        with:
+          static_site_generator: next
+
+      - name: Install Dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Build Next.js Production Site
+        run: npm run build
+
+      - name: Upload Artifacts
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./out # مجلد المخرجات الثابتة الذي يولده أمر next build
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
