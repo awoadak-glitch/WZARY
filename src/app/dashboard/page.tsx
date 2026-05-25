@@ -1,4 +1,6 @@
 "use client";
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import { db } from "../firebase";
 import { collection, addDoc, deleteDoc, doc, onSnapshot } from "firebase/firestore";
@@ -7,20 +9,18 @@ interface StudyFile { id: string; title: string; url: string; category: string; 
 interface StudentToken { id: string; code: string; name: string; }
 
 export default function Dashboard() {
-  const [role, setRole] = useState<string>("student");
+  const [role, setRole] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("models");
+  const [pageLoading, setPageLoading] = useState<boolean>(true);
   
-  // المصفوفات السحابية المربوطة بـ Firebase مباشرة لقراءة البيانات لحظياً
   const [files, setFiles] = useState<StudyFile[]>([]);
   const [tokens, setTokens] = useState<StudentToken[]>([]);
 
-  // مدخلات الإدمن السحابية
   const [newTitle, setNewTitle] = useState("");
   const [newUrl, setNewUrl] = useState("");
   const [newTokenCode, setNewTokenCode] = useState("");
   const [newTokenName, setNewTokenName] = useState("");
 
-  // مدخلات الـ AI الشات الذكي
   const [messages, setMessages] = useState([
     { role: "assistant", text: "مرحباً بك يا بطل! أنا مساعدك الذكي في منصة المنهج الشامل. اسألني عن أي سؤال في المنهج وسأبسطه لك فوراً!" }
   ]);
@@ -28,15 +28,24 @@ export default function Dashboard() {
   const [loadingAi, setLoadingAi] = useState(false);
 
   useEffect(() => {
-    setRole(localStorage.getItem("user_role") || "student");
+    const savedRole = localStorage.getItem("user_role");
+    
+    // حماية الصفحة: إذا لم يجد دور مستخدم مسجل يرجعه لصفحة الدخول فوراً
+    if (!savedRole) {
+      window.location.href = "./";
+      return;
+    }
+    
+    setRole(savedRole);
+    setPageLoading(false);
 
-    // 🔄 الاستماع اللحظي التلقائي لتحديثات وحذف الملفات من Firestore
+    // ربط ملفات قاعدة البيانات السحابية
     const unsubscribeFiles = onSnapshot(collection(db, "files"), (snapshot) => {
       const fileList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudyFile));
       setFiles(fileList);
     });
 
-    // 🔄 الاستماع اللحظي لإضافة وحذف رموز الطلاب في قاعدة البيانات
+    // ربط أكواد الطلاب المسموحة
     const unsubscribeTokens = onSnapshot(collection(db, "tokens"), (snapshot) => {
       const tokenList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentToken));
       setTokens(tokenList);
@@ -48,7 +57,6 @@ export default function Dashboard() {
     };
   }, []);
 
-  // إضافة ملف PDF جديد إلى Firebase أونلاين عبر الـ Admin
   const handleAddFile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newUrl.trim()) return;
@@ -64,7 +72,6 @@ export default function Dashboard() {
     }
   };
 
-  // حذف ملف من السيرفر نهائياً عبر الـ Admin
   const handleDeleteFile = async (id: string) => {
     try {
       await deleteDoc(doc(db, "files", id));
@@ -73,7 +80,6 @@ export default function Dashboard() {
     }
   };
 
-  // إضافة وتفعيل رمز طالب جديد في السيرفر السحابي
   const handleAddToken = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTokenCode.trim()) return;
@@ -88,7 +94,6 @@ export default function Dashboard() {
     }
   };
 
-  // حذف وإلغاء تفعيل رمز طالب من السيرفر فوراً
   const handleDeleteToken = async (id: string) => {
     try {
       await deleteDoc(doc(db, "tokens", id));
@@ -97,7 +102,6 @@ export default function Dashboard() {
     }
   };
 
-  // معالجة وإرسال شات الذكاء الاصطناعي مع مفتاح الـ API المدمج الحقيقي لـ Gemini
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim() || loadingAi) return;
@@ -130,6 +134,17 @@ export default function Dashboard() {
     window.location.href = "./";
   };
 
+  if (pageLoading) {
+    return (
+      <div className="min-h-screen bg-[#0d0b18] text-white flex items-center justify-center font-sans">
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 border-4 border-t-purple-500 border-purple-900 rounded-full animate-spin mx-auto"></div>
+          <p className="text-sm text-gray-400 font-medium">جاري تأمين الحساب والتحقق من الصلاحيات...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0d0b18] text-white flex flex-col font-sans relative overflow-hidden">
       
@@ -138,7 +153,7 @@ export default function Dashboard() {
         <div className="flex items-center gap-2">
           <span className="text-2xl animate-pulse">🎓</span>
           <h1 className="text-xl font-extrabold bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
-            الْمَنْهَجُ الشَّامِل {role === "admin" && <span className="text-[10px] bg-red-600 font-bold text-white px-2.5 py-0.5 rounded-full mr-2 tracking-wide uppercase">لوحة الإدمن السحابية</span>}
+            الْمَنْهَجُ الشَّامِل {role === "admin" && <span className="text-[10px] bg-red-600 font-bold text-white px-2.5 py-0.5 rounded-full mr-2 tracking-wide">لوحة الإدمن السحابية</span>}
           </h1>
         </div>
         <button onClick={handleLogout} className="text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2 px-4 rounded-xl border border-red-500/20 transition-all font-semibold shadow-inner">
@@ -146,7 +161,7 @@ export default function Dashboard() {
         </button>
       </header>
 
-      {/* أزرار التنقل الزجاجية الفخمة المتجاوبة */}
+      {/* أزرار التنقل الزجاجية */}
       <nav className={`grid bg-[#13112a]/80 backdrop-blur-sm border-b border-purple-500/10 text-center text-xs md:text-sm sticky top-[65px] z-40 ${role === 'admin' ? 'grid-cols-5' : 'grid-cols-4'}`}>
         <button onClick={() => setActiveTab("models")} className={`py-4 font-bold transition-all ${activeTab === "models" ? "text-purple-400 border-b-2 border-purple-400 bg-purple-500/5" : "text-gray-400 hover:text-white"}`}>النماذج</button>
         <button onClick={() => setActiveTab("calendars")} className={`py-4 font-bold transition-all ${activeTab === "calendars" ? "text-purple-400 border-b-2 border-purple-400 bg-purple-500/5" : "text-gray-400 hover:text-white"}`}>التقاويم</button>
@@ -165,8 +180,8 @@ export default function Dashboard() {
           <form onSubmit={handleAddFile} className="bg-purple-950/20 border border-purple-500/30 rounded-2xl p-4 mb-8 space-y-3 backdrop-blur-md shadow-xl">
             <h3 className="text-sm font-bold text-purple-300 flex items-center gap-1">➕ رفع ملف PDF سحابي للقسم الحالي:</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <input type="text" placeholder="اسم الـ PDF (مثال: ملخص أحياء)" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} className="bg-[#1c1936] border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:border-purple-500" />
-              <input type="text" placeholder="رابط أو مسار ملف الـ PDF" value={newUrl} onChange={(e) => setNewUrl(e.target.value)} className="bg-[#1c1936] border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-left text-white focus:outline-none focus:border-purple-500" />
+              <input type="text" placeholder="اسم الـ PDF" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} className="bg-[#1c1936] border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:border-purple-500" />
+              <input type="text" placeholder="رابط الملف" value={newUrl} onChange={(e) => setNewUrl(e.target.value)} className="bg-[#1c1936] border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-left text-white focus:outline-none focus:border-purple-500" />
             </div>
             <button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold py-2.5 rounded-xl transition-all shadow-md">
               حفظ وتثبيت الملف في السيرفر السحابي ⚡
@@ -204,14 +219,14 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* لوحة تحكم إدارة الرموز السحابية السرية للطلاب (للإدمن فقط) */}
+        {/* لوحة تحكم إدارة الرموز السحابية للطلاب (للإدمن فقط) */}
         {role === "admin" && activeTab === "manage_tokens" && (
           <div className="space-y-6">
             <form onSubmit={handleAddToken} className="bg-amber-950/20 border border-amber-500/30 rounded-2xl p-4 space-y-3 backdrop-blur-md shadow-xl">
               <h3 className="text-sm font-bold text-amber-300">🔑 توليد وتفعيل رمز دخول جديد لطالب:</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <input type="text" placeholder="الرمز السري (مثال: DEV773)" value={newTokenCode} onChange={(e) => setNewTokenCode(e.target.value)} className="bg-[#1c1936] border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:border-amber-500" />
-                <input type="text" placeholder="اسم الطالب المستلم (اختياري)" value={newTokenName} onChange={(e) => setNewTokenName(e.target.value)} className="bg-[#1c1936] border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:border-amber-500" />
+                <input type="text" placeholder="الرمز السري" value={newTokenCode} onChange={(e) => setNewTokenCode(e.target.value)} className="bg-[#1c1936] border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:border-amber-500" />
+                <input type="text" placeholder="اسم الطالب المستلم" value={newTokenName} onChange={(e) => setNewTokenName(e.target.value)} className="bg-[#1c1936] border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:border-amber-500" />
               </div>
               <button type="submit" className="w-full bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold py-2.5 rounded-xl transition-all shadow-md">
                 تفعيل الرمز وحفظه في السيرفر فوراً
@@ -239,7 +254,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* واجهة الشات والمساعد الذكي المطور الفاخر AI */}
+        {/* واجهة المساعد الذكي المطور AI */}
         {activeTab === "ai" && (
           <div className="bg-[#13112a]/40 border border-purple-500/20 rounded-2xl h-[530px] flex flex-col backdrop-blur-md overflow-hidden shadow-2xl">
             <div className="flex-1 p-4 overflow-y-auto space-y-4">
@@ -276,7 +291,6 @@ export default function Dashboard() {
 
       </main>
 
-      {/* الفوتر الاحترافي الحصري باسمك الفخم */}
       <footer className="text-center text-xs text-gray-600 mt-auto pb-6 border-t border-purple-500/10 pt-4 bg-[#0d0b18]/80 z-20 font-bold">
         جميع الحقوق محفوظة للمنصة التعليمية الذكية • إعداد وتطوير: الديفل ⚡
       </footer>
