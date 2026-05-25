@@ -33,8 +33,6 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
-        with:
-          static_site_generator: next
 
       - name: Install Dependencies
         run: |
@@ -45,31 +43,12 @@ jobs:
           fi
 
       - name: Build Next.js Production Site
-        run: |
-          # هنا نجبر أمر البناء على تصدير ملفات ثابتة حتى لو لم يتم تفعيلها في ملف التكوين
-          npx next build
-
-      - name: Check Output Directory and Fallback
-        run: |
-          # فحص ذكي: إذا لم يتواجد مجلد out، نستخدم مجلد Pages الافتراضي المستهدف لـ Next
-          if [ -d "./out" ]; then
-            echo "path=./out" >> $GITHUB_ENV
-          elif [ -d "./.next" ]; then
-            # في حال تم البناء العادي، نقوم بعمل التصدير الثابت يدوياً
-            npx next export || echo "No explicit export script needed"
-            if [ -d "./out" ]; then
-              echo "path=./out" >> $GITHUB_ENV
-            else
-              echo "path=." >> $GITHUB_ENV
-            fi
-          else
-            echo "path=." >> $GITHUB_ENV
-          fi
+        run: npm run build
 
       - name: Upload Artifacts
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ${{ env.path }}
+          path: ./out # هذا هو المجلد الصحيح الذي يحتوي على ملف index.html المفقود
 
       - name: Deploy to GitHub Pages
         id: deployment
