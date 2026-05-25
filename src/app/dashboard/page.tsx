@@ -29,9 +29,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     const savedRole = localStorage.getItem("user_role");
+    const savedToken = localStorage.getItem("user_token");
     
-    // حماية الصفحة: إذا لم يجد دور مستخدم مسجل يرجعه لصفحة الدخول فوراً
-    if (!savedRole) {
+    // حماية الصفحة: التحقق من وجود الحساب لمنع الـ undefined عند تشغيل الـ queries
+    if (!savedRole || !savedToken) {
+      localStorage.clear();
       window.location.href = "./";
       return;
     }
@@ -39,17 +41,20 @@ export default function Dashboard() {
     setRole(savedRole);
     setPageLoading(false);
 
-    // ربط ملفات قاعدة البيانات السحابية
+    // 1️⃣ الاستماع اللحظي للملفات (متاح للجميع)
     const unsubscribeFiles = onSnapshot(collection(db, "files"), (snapshot) => {
       const fileList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudyFile));
       setFiles(fileList);
     });
 
-    // ربط أكواد الطلاب المسموحة
-    const unsubscribeTokens = onSnapshot(collection(db, "tokens"), (snapshot) => {
-      const tokenList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentToken));
-      setTokens(tokenList);
-    });
+    // 2️⃣ الاستماع اللحظي للرموز (يتم تفعيله للإدمن فقط لحماية الأداء والصلاحيات)
+    let unsubscribeTokens = () => {};
+    if (savedRole === "admin") {
+      unsubscribeTokens = onSnapshot(collection(db, "tokens"), (snapshot) => {
+        const tokenList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentToken));
+        setTokens(tokenList);
+      });
+    }
 
     return () => {
       unsubscribeFiles();
@@ -189,7 +194,7 @@ export default function Dashboard() {
           </form>
         )}
 
-        {/* عرض قائمة الملفات القادمة من السيرفر السحابي حقيقياً */}
+        {/* عرض قائمة الملفات القادمة من السيرفر السحابي */}
         {activeTab !== "ai" && activeTab !== "manage_tokens" && (
           <div className="space-y-3">
             {files.filter(f => f.category === activeTab).length === 0 ? (
